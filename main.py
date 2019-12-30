@@ -2,7 +2,7 @@
 import discord
 from discord.ext import commands
 client = discord.Client()
-TOKEN = "NjYwNDk2NjQwNTc0MDk1NDI2.XgnuBg.YY-DwkZRwrKUIEeMovocNzM6ks4"
+TOKEN = "NjYwNDk2NjQwNTc0MDk1NDI2.XgnvHQ.zkFv6_akDO4k4GqX1rPlDXun1dA"
 from rsp import *
 import re
 
