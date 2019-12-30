@@ -72,7 +72,7 @@ async def on_message(message):
         await message.channel.send("안녕하세요")
 
     if len(re.findall("겨[^겨레]*레", message.content)) != 0:
-        msg = f"<@{message.author.id}>" + re.sub("겨[^겨레]*레", "아싸", message.content)
+        msg = f"<@{message.author.id}> : " + re.sub("겨[^겨레]*레", "아싸", message.content)
         await message.delete()
         message = await message.channel.send(msg)
         await add_reaction_outsider(message)
