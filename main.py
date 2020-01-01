@@ -5,6 +5,7 @@ client = discord.Client()
 TOKEN = "NjYwNDk2NjQwNTc0MDk1NDI2.XgnvHQ.zkFv6_akDO4k4GqX1rPlDXun1dA"
 from rsp import *
 import re
+from avalon import *
 
 async def add_reaction_outsider(message, name_only=False):
     await message.add_reaction(":rla:636572608896172042")
@@ -87,6 +88,8 @@ async def on_message(message):
     if message.content.startswith("!가위바위보"):
         await rsp(client, message.channel)
 
+    if message.content.startswith("!avl"):
+        await avalon(client, message.channel)
 
 client.run(TOKEN)
 
