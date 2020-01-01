@@ -46,7 +46,7 @@ async def clear(message):
         return
 
     deleted = await message.channel.purge(limit=cnt)
-    alert = await message.channel.send(f"{len(deleted)}개의 메시지를 삭제했습니다.")
+    alert = await message.channel.send(f"{len(deleted)-1}개의 메시지를 삭제했습니다.")
     await alert.delete(delay=1.5)
 
 
