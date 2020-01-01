@@ -22,9 +22,9 @@ async def display_embed(channel):
         colour=discord.Colour.blue()
     )
     embed.set_footer(text="FOOTER")
-    embed.set_image(url="https://tenor.com/view/yuck-gross-disgust-eww-steve-carell-gif-3556274")
-    embed.set_thumbnail(url="https://tenor.com/view/yuck-gross-disgust-eww-steve-carell-gif-3556274")
-    embed.set_author(icon_url="https://tenor.com/view/yuck-gross-disgust-eww-steve-carell-gif-3556274",
+    embed.set_image(url="https://i.imgur.com/0vrgKoP.png")
+    embed.set_thumbnail(url="https://i.imgur.com/0vrgKoP.png")
+    embed.set_author(icon_url="https://i.imgur.com/24pglTeb.png",
                      name="AUTHOR NAME",
                      url="https://tenor.com/view/yuck-gross-disgust-eww-steve-carell-gif-3556274")
     embed.add_field(name="Field1", value="Value1", inline=False)
@@ -34,7 +34,7 @@ async def display_embed(channel):
 
 async def clear(message):
     try:
-        cnt = int(message.content.split(" ")[1])
+        cnt = int(message.content.split(" ")[1]) + 1
     except ValueError:
         await message.channel.send("정확한 숫자를 입력해주세요. ex)`!clr 5`")
         return
