@@ -1,5 +1,5 @@
 import discord
-
+import asyncio
 async def rsp_dm(member:discord.Member, is_draw:bool):
     channel = await member.create_dm()
     message = await channel.send(("비겼습니다. " if is_draw else "") + "`가위`, `바위`, `보` 중 하나를 선택해주세요. 선택 후 메시지가 사라지지 않는다면 다시 선택해 주세요.")
@@ -32,18 +32,17 @@ async def rsp_judge(hand_1, hand_2):
 async def rsp(client:discord.Client, channel):
     rsp_list = ["\u270A", "\u270C", "\u270B"]
     participants = set()
-    await channel.send("게임에 참여하시려면 `!참가` 를 입력해주세요.")
+    await channel.send("게임에 참여하시려면 30초 이내로 `!참가` 를 입력해주세요.")
     def check(m):
         if m.content == '!참가' and m.channel == channel:
             participants.add(m.author)
         return len(participants) == 2
-    # player1_message = await client.wait_for('message', check=check)
-    # while 1:
-    #     player2_message = await client.wait_for('message', check=check)
-    #     if player1_message.author != player2_message.author:
-    #         break
-    #     print("Same player is going to play.. ignoring it")
-    await client.wait_for('message', check=check)
+    try:
+        await client.wait_for('message', check=check, timeout=30)
+    except asyncio.TimeoutError:
+        await channel.send("게임 모집 시간이 초과되었습니다. 진행을 취소합니다.")
+        return
+
     player1, player2 = list(participants)
     await channel.send("게임을 시작합니다. 개인 메시지를 확인해 주세요.")
     # player1 = player1_message.author
