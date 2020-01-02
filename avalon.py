@@ -5,11 +5,15 @@ from collections import deque
 import random as r
 import re
 
-async def avalon_setup_characters(participants):
+async def avalon_setup_characters(participants, setup_code):
     # Players: 5 6 7 8 9 10
     # Goods  : 3 4 4 5 6 6
     # Evils  : 2 2 3 3 3 4
-
+    # setup_code
+    # 1: normal, only merlin, assassin
+    # 2: added some, merlin, assassin, morgana, percival
+    # 3: added some, merlin, assassin, mordred, percival
+    print(f"SETUP CODE = {setup_code}")
     players_count = len(participants)
     r.shuffle(participants)
 
@@ -23,16 +27,31 @@ async def avalon_setup_characters(participants):
         current_player = participants.popleft()
         if i == 0:
             good_players.append([current_player, Merlin()])
+            print("Added Merlin")
+        elif setup_code == 2 and i == 1:
+            good_players.append([current_player, Percival()])
+            print("Added Percival")
         else:
             good_players.append([current_player, ArthursServants(i-1)])
+            print("Added Servant")
 
     for i in range(evil_count[players_count]):
         current_player = participants.popleft()
         if i == 0:
             evil_players.append([current_player, Assassin()])
+            print("Added Assassin")
+        elif setup_code == 2 and i == 1:
+            evil_players.append([current_player, Morgana()])
+            print("Added Morgana")
+        elif setup_code == 3 and i == 1:
+            evil_players.append([current_player, Mordred()])
+            print("Added Mordred")
         else:
             evil_players.append([current_player, MinionsOfMordred(i-1)])
+            print("Added Minion")
 
+    print(good_players, evil_players)
+    print(len(good_players), len(evil_players))
     return good_players, evil_players
 
 # announce type_cards by dm message
@@ -46,7 +65,18 @@ async def avalon_setup_announce(global_channel:discord.TextChannel, good_players
         )
         embed.set_thumbnail(url=i[1].url)
         embed.add_field(name="선악 여부", value='선', inline=True)
+        if type(i[1]) == Percival:
+            merlins = [i[0].nick for i in good_players if type(i[1]) == Merlin] + [i[0].nick for i in evil_players if type(i[1]) == Morgana]
+            r.shuffle(merlins)
+            embed.add_field(name="멀린", value=", ".join(merlins), inline=True)
+
+        if type(i[1]) == Merlin:
+            bad_boys = [i[0].nick for i in evil_players if type(i[1]) != Mordred]
+            embed.add_field(name="악의 정체", value=", ".join(bad_boys), inline=True)
+
         await channel.send("당신의 역할 카드입니다.", embed=embed)
+
+
     visible_evil_names = [i[0].nick for i in evil_players if type(i[1]) != Oberon]
     for i in evil_players:
         channel = await i[0].create_dm()
@@ -75,9 +105,9 @@ async def avalon_setup_turn_announce(channel:discord.TextChannel, participants:d
     msg = " -> ".join([x.nick for x in participants]) + " -> " + participants[0].nick
     await channel.send("게임 진행 순서는 다음과 같습니다.\n```" + msg + "```")
 
-async def avalon_setup(channel:discord.TextChannel, participants:deque):
+async def avalon_setup(channel:discord.TextChannel, participants:deque, setup_code):
     """ DO NOT THROW PARTICIPANTS FOR ARGUMENTS BY RAW """
-    good_players, evil_players = await avalon_setup_characters(deque([x for x in participants]))
+    good_players, evil_players = await avalon_setup_characters(deque([x for x in participants]), setup_code)
     await avalon_setup_announce(channel, good_players, evil_players)
     await avalon_setup_turn_announce(channel, participants)
     participants = [x for x in good_players] + [y for y in evil_players]
@@ -143,44 +173,6 @@ async def avalon_build_quest_team(client:discord.Client, channel:discord.TextCha
             else:
                 break
     return quest_member
-        # if message.content == '!출발':
-        #     if len(quest_member) == cur_quest_limit:
-        #         await channel.send("원정단이 대표에 의해 선정되었습니다. 투표를 통해 원정단을 확정합니다.")
-        #     else:
-        #         await channel.send(f"원정을 떠나기 위한 원정대 구성원의 수가 맞지 않습니다. {cur_quest_limit}명을 꾸려 주세요. (현재 {len(quest_member)}명)")
-        #         continue
-        # elif message.content.startswith("!원정단 추가") or message.content.startswith("!원정단 제거"):
-        #     delete_member_state = True if message.content.startswith("!원정단 제거") else False
-        #     temp_quest_member = message.content.split(" ")[2]
-        #     t = re.fullmatch("<@![0-9]*>", str(temp_quest_member)).string
-        #     if t == None:
-        #         await channel.send("게임에 참여하지 않는 멤버이거나, 잘못 입력하셨습니다. ex) `!원정단 @플레이어`")
-        #     else:
-        #         temp_quest_member_id = t[3:-1]
-        #         if delete_member_state:
-        #             #제거
-        #             if len(quest_member) == 0:
-        #                 await channel.send("원정단에서 제거할 멤버가 존재하지 않습니다.")
-        #                 continue
-        #             else:
-        #                 quest_member.remove(temp_quest_member_id)
-        #                 await channel.send(f"원정단 구성원에서 <@{temp_quest_member_id}>를 제거했습니다. (현재 구성원 {len(quest_member)}명)")
-        #         else:
-        #             #추가
-        #             if temp_quest_member_id not in players_id:
-        #                 await channel.send("언급한 플레이어는 현재 게임에 참여하고 있지 않습니다.")
-        #                 continue
-        #             if temp_quest_member_id in quest_member:
-        #                 await channel.send("언급한 플레이어는 이미 원정대에 포함돼 있습니다.")
-        #                 continue
-        #
-        #             if (len(quest_member) == cur_quest_limit):
-        #                 await channel.send("원정단 구성원이 최대치에 도달했습니다. `!원정단 제거 (@플레이어)`를 통해 구성원 수를 조절하세요.")
-        #             else:
-        #                 quest_member.append(temp_quest_member_id)
-        #                 await channel.send(f"원정단에 <@{temp_quest_member_id}>를 추가합니다. (현재 {len(quest_member)}명)")
-        #
-        #
 
 async def avalon_vote_quest_team(client:discord.Client, channel:discord.channel, quest_team:list, players:deque, vote_fail_cnt):
     message = await channel.send("원정대 구성에 관한 투표를 진행합니다.")
@@ -334,24 +326,44 @@ async def avalon_help(channel:discord.TextChannel):
         description="원정이 총 세 번 실패하면 즉시 악의 승리로 게임이 종료됩니다.\n\n원정대 구성안이 한 라운드에 5번 연속 거부당해도 즉시 악의 승리로 게임이 끝납니다.\n\n하지만 원정이 3번 성공한다고 해도 선이 즉시 승리하지는 않습니다.",
         colour=discord.Colour.gold()
     )
-    embed3.add_field(name="멀린 암살 시도", value="원정이 총 3번 성공하면, 악은 최후의 발악으로서 멀린 암살을 시도합니다.\n\n악 플레이어들끼리 멀린이 누구일지 논의한 뒤, 멀린이라고 추측되는 플레이어를 암살자가 지목합니다.\n\n지목된 플레이어가 멀린이면 악이 승리하고, 그렇지 않으면 선이 승리합니다.\n\n")
+    embed3.add_field(name="멀린 암살 시도", value="원정이 총 3번 성공하면, 악은 최후의 발악으로서 `멀린 암살`을 시도합니다.\n\n악 플레이어들끼리 멀린이 누구일지 논의한 뒤, 멀린이라고 추측되는 플레이어를 암살자가 지목합니다.\n\n지목된 플레이어가 멀린이면 악이 승리하고, 그렇지 않으면 선이 승리합니다.\n\n")
 
+    embed4 = discord.Embed(
+        title="캐릭터 소개",
+        colour=discord.Colour.gold()
+    )
+    embed4.add_field(name="멀린 (선)", value="악이 누구인지 봅니다. 정체가 들키게 되면 `암살 시도` 단계에서 암살당할 수 있습니다.", inline=False)
+    embed4.add_field(name="퍼시벌 (선)", value="`멀린`이 누구인지 봅니다.",inline=False)
+    embed4.add_field(name="암살자 (악)", value="`암살 시도` 시 목표를 지목합니다.",inline=False)
+    embed4.add_field(name="오베론 (악)", value="다른 악과 서로 정체를 모릅니다.",inline=False)
+    embed4.add_field(name="모르가나 (악)", value="`퍼시벌`이 보기에 멀린처럼 보입니다.", inline=False)
+    embed4.add_field(name="모드레드 (악)", value="`멀린`에게 정체를 보여주지 않습니다.", inline=False)
     await channel.send(embed=embed1)
     await channel.send(embed=embed2)
     await channel.send(embed=embed3)
+    await channel.send(embed=embed4)
 
-async def avalon(client:discord.Client, channel:discord.TextChannel):
+async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
     # type(participants) -> collections.Deque (RANDOMLY SHUFFLED)
     participants = await avalon_get_participants(client, channel)
     if participants == None:
         return
-    print(participants)
 
+    embed = discord.Embed(
+        title="게임 구성",
+        description="1. 기본 (멀린, 암살자)\n\n2. 약간 추가 (멀린, 암살자, 모르가나, 퍼시벌)\n\n3. 약간 추가 (멀린, 암살자, 모드레드, 퍼시벌)",
+        colour=discord.Colour.gold()
+    )
+    await channel.send("게임 구성을 입력해주세요.", embed=embed)
+
+    def check(m):
+        return m.content in ['1','2','3','4'] and m.author == starter and m.channel == channel
+    setup_code = await client.wait_for("message", check=check)
+    setup_code = int(setup_code.content)
     "Setup phase"
-    participants = await avalon_setup(channel, deque([x for x in participants]))
+    participants = await avalon_setup(channel, deque([x for x in participants]), setup_code)
     total_quest_stat = [-1] * 5
     "===== repeat below - 5 times ====="
-
     for i in range(5):
         await channel.send(embed=await avalon_board_embed(total_quest_stat))
         if total_quest_stat.count(0) >= 3:
@@ -361,8 +373,10 @@ async def avalon(client:discord.Client, channel:discord.TextChannel):
             result = await avalon_assassinate(client, channel, participants)
             if result:
                 await avalon_end(channel, participants, EVIL)
+                return
             else:
                 await avalon_end(channel, participants, GOOD)
+                return
         vote_fail_cnt = 0
         while 1:
             if vote_fail_cnt == 4:

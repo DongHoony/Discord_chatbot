@@ -92,7 +92,7 @@ async def on_message(message):
         if message.content == "!avl help":
             await avalon_help(message.channel)
         else:
-            await avalon(client, message.channel)
+            await avalon(client, message.channel, message.author)
 
 
 
