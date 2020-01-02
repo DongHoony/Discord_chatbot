@@ -75,7 +75,6 @@ async def avalon_setup_announce(global_channel:discord.TextChannel, good_players
 
         await channel.send("당신의 역할 카드입니다.", embed=embed)
 
-
     visible_evil_names = [i[0].nick for i in evil_players if type(i[1]) != Oberon]
     for i in evil_players:
         channel = await i[0].create_dm()
@@ -110,7 +109,7 @@ async def avalon_setup(channel:discord.TextChannel, participants:deque, setup_co
     good_players, evil_players = await avalon_setup_characters(deque([x for x in participants]), setup_code)
     await avalon_setup_announce(channel, good_players, evil_players)
     participants = deque([x for x in good_players] + [y for y in evil_players])
-    print(participants)
+    print(*[(x[0].id,type(x[1])) for x in participants], sep='\n')
     await avalon_setup_turn_announce(channel, participants)
     return deque(participants)
 
@@ -234,9 +233,13 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
 
 async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest_team:list, players:deque, round_number):
     await channel.send("원정대에 한해, 원정 성공 여부 투표를 진행합니다.")
+    print(round_number, len(players))
+    special_round = len(players) >= 7 and round_number == 3
+    if special_round:
+        await channel.send("이번 라운드는 실패가 2표 이상이어야 원정에 실패합니다.")
     quest_team_members = [x[0] for x in players if str(x[0].id) in quest_team]
     vote_yes, vote_no = await avalon_vote(client, quest_team_members, False)
-    if len(quest_team) >= 7 and round_number == 4:
+    if len(players) >= 7 and round_number == 3:
         vote_success = vote_no < 2
     else:
         vote_success = not vote_no
@@ -247,6 +250,7 @@ async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest
     )
     embed.add_field(name="원정 성공 표", value=str(vote_yes), inline=True)
     embed.add_field(name="원정 실패 표", value=str(vote_no))
+    await channel.send(f"원정단이 다녀왔습니다. ```{', '.join(x[0].nick for x in players if str(x[0].id) in quest_team)}```")
     await channel.send("원정 결과입니다.", embed=embed)
     if vote_success:
         return True
@@ -343,6 +347,21 @@ async def avalon_help(channel:discord.TextChannel):
     await channel.send(embed=embed3)
     await channel.send(embed=embed4)
 
+async def avalon_end_judge(client:discord.Client, channel:discord.TextChannel, participants:deque, total_quest_stat:list):
+    await channel.send(embed=await avalon_board_embed(total_quest_stat))
+    if total_quest_stat.count(0) >= 3:
+        await avalon_end(channel, participants, EVIL)
+        return True
+    if total_quest_stat.count(1) == 3:
+        result = await avalon_assassinate(client, channel, participants)
+        if result:
+            await avalon_end(channel, participants, EVIL)
+            return True
+        else:
+            await avalon_end(channel, participants, GOOD)
+            return True
+    return False
+
 async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
     # type(participants) -> collections.Deque (RANDOMLY SHUFFLED)
     participants = await avalon_get_participants(client, channel)
@@ -365,21 +384,12 @@ async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
     total_quest_stat = [-1] * 5
     "===== repeat below - 5 times ====="
     for i in range(5):
-        await channel.send(embed=await avalon_board_embed(total_quest_stat))
-        if total_quest_stat.count(0) >= 3:
-            await avalon_end(channel, participants, EVIL)
+        valid = await avalon_end_judge(client, channel, participants, total_quest_stat)
+        if valid:
             return
-        if total_quest_stat.count(1) == 3:
-            result = await avalon_assassinate(client, channel, participants)
-            if result:
-                await avalon_end(channel, participants, EVIL)
-                return
-            else:
-                await avalon_end(channel, participants, GOOD)
-                return
         vote_fail_cnt = 0
         while 1:
-            if vote_fail_cnt == 4:
+            if vote_fail_cnt == 5:
                 await avalon_end(channel, participants, EVIL)
                 return
             "team_building phase"
@@ -392,20 +402,8 @@ async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
         "Quest phase"
         quest_success = await avalon_quest(client, channel, quest_member, participants, i)
         total_quest_stat[i] = 1 if quest_success else 0
+    await avalon_end_judge(client, channel, participants, total_quest_stat)
 
-    # NEED TO MODIFY BELOW<
-    await channel.send(embed=await avalon_board_embed(total_quest_stat))
-    if total_quest_stat.count(0) >= 3:
-        await avalon_end(channel, participants, EVIL)
-        return
-    if total_quest_stat.count(1) == 3:
-        result = await avalon_assassinate(client, channel, participants)
-        if result:
-            await avalon_end(channel, participants, EVIL)
-            return
-        else:
-            await avalon_end(channel, participants, GOOD)
-            return
 # returns set of participants
 async def avalon_get_participants(client:discord.Client, channel:discord.TextChannel):
     participants = set()
