@@ -89,7 +89,12 @@ async def on_message(message):
         await rsp(client, message.channel)
 
     if message.content.startswith("!avl"):
-        await avalon(client, message.channel)
+        if message.content == "!avl help":
+            await avalon_help(message.channel)
+        else:
+            await avalon(client, message.channel)
+
+
 
 client.run(TOKEN)
 

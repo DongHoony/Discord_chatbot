@@ -240,11 +240,11 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
             await message.channel.send("투표에 반대하셨습니다." if is_quest_team_vote else "원정 실패에 투표하셨습니다.")
     return (up, down)
 
-async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest_team:list, players:deque):
+async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest_team:list, players:deque, round_number):
     await channel.send("원정대에 한해, 원정 성공 여부 투표를 진행합니다.")
     quest_team_members = [x[0] for x in players if str(x[0].id) in quest_team]
     vote_yes, vote_no = await avalon_vote(client, quest_team_members, False)
-    if len(quest_team) >= 7:
+    if len(quest_team) >= 7 and round_number == 4:
         vote_success = vote_no < 2
     else:
         vote_success = not vote_no
@@ -315,6 +315,31 @@ async def avalon_end(channel:discord.TextChannel, players:deque, win_side):
 
     await channel.send("@here 게임이 종료되었습니다.", embed=embed)
 
+async def avalon_help(channel:discord.TextChannel):
+    embed1 = discord.Embed(
+        title="레지스탕스: 아발론",
+        description="<레지스탕스: 아발론>은 각자의 정체를 숨긴 채 임무를 수행하는 게임입니다.\n\n누군가는 `아서 왕의 충성스러운 신하`가 되어 선과 명예를 위해 싸우고,\n\n누군가는 `모드레드의 수하`가 되어 모드레드를 좇아 악을 행합니다.\n\n선은 원정이 3번 성공해야 승리하고, 악은 원정이 3번 실패해야 승리합니다.\n\n원정이 3번 승리하더라도 악이 멀린을 암살하면 악이 승리합니다.",
+        colour=discord.Colour.gold()
+    )
+    embed2 = discord.Embed(
+        title="게임 진행",
+        description="게임은 총 5라운드이며, 각 라운드는 `원정대 구성`단계와 `원정 진행`단계로 나뉩니다.",
+        colour=discord.Colour.gold()
+    )
+    embed2.add_field(name="원정대 구성", value="원정대를 구성할 기사를 지목합니다.\n\n모든 플레이어는 대표의 구성안에 대해 투표하여\n\n원정대를 확정하거나 변경할 수 있습니다.\n\n투표는 과반수가 넘어야 하며, 동률일 경우 거부됩니다.\n\n", inline=False)
+    embed2.add_field(name="원정 진행",value="원정대에 소속된 플레이어들이 원정의 성공여부를 결정합니다.\n\n원정대의 모든 인원이 성공에 투표해야 원정에 성공합니다.\n\n단, 7명 이상 게임에서는 4번째 원정이 실패하려면 2명이 실패에 투표해야 합니다.\n\n", inline=False)
+
+    embed3 = discord.Embed(
+        title="게임 종료",
+        description="원정이 총 세 번 실패하면 즉시 악의 승리로 게임이 종료됩니다.\n\n원정대 구성안이 한 라운드에 5번 연속 거부당해도 즉시 악의 승리로 게임이 끝납니다.\n\n하지만 원정이 3번 성공한다고 해도 선이 즉시 승리하지는 않습니다.",
+        colour=discord.Colour.gold()
+    )
+    embed3.add_field(name="멀린 암살 시도", value="원정이 총 3번 성공하면, 악은 최후의 발악으로서 멀린 암살을 시도합니다.\n\n악 플레이어들끼리 멀린이 누구일지 논의한 뒤, 멀린이라고 추측되는 플레이어를 암살자가 지목합니다.\n\n지목된 플레이어가 멀린이면 악이 승리하고, 그렇지 않으면 선이 승리합니다.\n\n")
+
+    await channel.send(embed=embed1)
+    await channel.send(embed=embed2)
+    await channel.send(embed=embed3)
+
 async def avalon(client:discord.Client, channel:discord.TextChannel):
     # type(participants) -> collections.Deque (RANDOMLY SHUFFLED)
     participants = await avalon_get_participants(client, channel)
@@ -344,14 +369,14 @@ async def avalon(client:discord.Client, channel:discord.TextChannel):
                 await avalon_end(channel, participants, EVIL)
                 return
             "team_building phase"
-            quest_member = await avalon_build_quest_team(client, channel, participants, 0)
+            quest_member = await avalon_build_quest_team(client, channel, participants, i)
             vote_success = await avalon_vote_quest_team(client, channel, quest_member, participants, vote_fail_cnt)
             if vote_success:
                 break
             else:
                 vote_fail_cnt += 1
         "Quest phase"
-        quest_success = await avalon_quest(client, channel, quest_member, participants)
+        quest_success = await avalon_quest(client, channel, quest_member, participants, i)
         total_quest_stat[i] = 1 if quest_success else 0
 
 # returns set of participants
