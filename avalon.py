@@ -11,8 +11,10 @@ async def avalon_setup_characters(participants):
     # Evils  : 2 2 3 3 3 4
 
     players_count = len(participants)
-    good_count = [0, 1, 0, 0, 2, 3, 4, 4, 5, 6, 6]
-    evil_count = [0, 0, 2, 3, 2, 2, 2, 3, 3, 3, 4]
+    r.shuffle(participants)
+
+    good_count = [0, 1, 1, 1, 2, 3, 4, 4, 5, 6, 6]
+    evil_count = [0, 0, 1, 2, 2, 2, 2, 3, 3, 3, 4]
 
     good_players = []
     evil_players = []
@@ -43,7 +45,7 @@ async def avalon_setup_announce(global_channel:discord.TextChannel, good_players
             colour = discord.Colour.blue()
         )
         embed.set_thumbnail(url=i[1].url)
-        embed.add_field(name="선악 여부", value='악선'[i[1].side], inline=True)
+        embed.add_field(name="선악 여부", value='선', inline=True)
         await channel.send("당신의 역할 카드입니다.", embed=embed)
     visible_evil_names = [i[0].nick for i in evil_players if type(i[1]) != Oberon]
     for i in evil_players:
@@ -54,9 +56,9 @@ async def avalon_setup_announce(global_channel:discord.TextChannel, good_players
             colour=discord.Colour.red()
         )
         embed.set_thumbnail(url=i[1].url)
-        embed.add_field(name="선악 여부", value='악선'[i[1].side], inline=True)
+        embed.add_field(name="선악 여부", value='악', inline=True)
         visible_evil_names.remove(i[0].nick)
-        embed.add_field(name="다른 악 플레이어", value = ", ".join(visible_evil_names))
+        embed.add_field(name="다른 악 플레이어", value = ", ".join(visible_evil_names) if visible_evil_names else '-')
         visible_evil_names.append(i[0].nick)
         await channel.send("당신의 역할 카드입니다.", embed=embed)
 
@@ -240,10 +242,7 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
 
 async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest_team:list, players:deque):
     await channel.send("원정대에 한해, 원정 성공 여부 투표를 진행합니다.")
-    print(players)
-    print(quest_team)
     quest_team_members = [x[0] for x in players if str(x[0].id) in quest_team]
-    print(quest_team_members)
     vote_yes, vote_no = await avalon_vote(client, quest_team_members, False)
     if len(quest_team) >= 7:
         vote_success = vote_no < 2
@@ -274,6 +273,48 @@ async def avalon_board_embed(total_quest_stat):
     embed.add_field(name="-", value='-', inline=True)
     return embed
 
+async def avalon_assassinate(client:discord.Client, channel:discord.TextChannel, players:deque):
+    await channel.send("무사히 3번의 여정을 끝마쳤습니다.")
+    assassin = [x[0] for x in players if type(x[1]) == Assassin][0]
+    await channel.send(f"암살자 <@{assassin.id}>의 암살 계획이 남아 있습니다.\n멀린으로 의심되는 사람을 상의 후 지목해 주세요.\n`!암살 (@플레이어)`")
+    user_id = [str(x[0].id) for x in players]
+
+    def check(message):
+        return message.author == assassin and message.content.startswith("!암살") and len(message.content.split(" ")) == 2
+    while 1:
+        message = await client.wait_for("message", check=check)
+        target_id = [x for x in re.findall("[0-9]*", message.content.split(" ")[1]) if x != ""]
+        print(target_id)
+        if target_id == []:
+            await channel.send("정확한 플레이어를 지목해주세요. `!암살 (@플레이어)`")
+            continue
+        else:
+            target_id = target_id[0]
+            if target_id not in user_id:
+                await channel.send("해당 플레이어는 게임에 속해있지 않습니다.")
+                continue
+            break
+
+    target = [x[0] for x in players if type(x[1]) == Merlin][0]
+    return str(target.id) == target_id
+
+async def avalon_end(channel:discord.TextChannel, players:deque, win_side):
+    evil_players = [x for x in players if x[1].side == EVIL]
+    good_players = [x for x in players if x[1].side == GOOD]
+    print(f"EVIL : {evil_players}")
+    print(f"GOOD : {good_players}")
+    embed = discord.Embed(
+        title="게임 종료",
+        description=("선" if win_side == GOOD else "악") + "이 이겼습니다.",
+        colour=discord.Colour.red() if win_side == EVIL else discord.Colour.blue()
+    )
+    for i in good_players:
+        embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>", inline=True)
+    for i in evil_players:
+        embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>", inline=True)
+
+    await channel.send("@here 게임이 종료되었습니다.", embed=embed)
+
 async def avalon(client:discord.Client, channel:discord.TextChannel):
     # type(participants) -> collections.Deque (RANDOMLY SHUFFLED)
     participants = await avalon_get_participants(client, channel)
@@ -289,17 +330,18 @@ async def avalon(client:discord.Client, channel:discord.TextChannel):
     for i in range(5):
         await channel.send(embed=await avalon_board_embed(total_quest_stat))
         if total_quest_stat.count(0) >= 3:
-            await channel.send("악의 승리입니다.")
+            await avalon_end(channel, participants, EVIL)
             return
         if total_quest_stat.count(1) == 3:
-            await channel.send("암살자의 암살 계획이 남아 있습니다.\n멀린으로 의심되는 사람을 상의 후 지목해 주세요.\n`!암살 (@플레이어)`")
-
-
+            result = await avalon_assassinate(client, channel, participants)
+            if result:
+                await avalon_end(channel, participants, EVIL)
+            else:
+                await avalon_end(channel, participants, GOOD)
         vote_fail_cnt = 0
         while 1:
             if vote_fail_cnt == 4:
-                "GAME OVER - EVIL WINS"
-                print("EVIL WON")
+                await avalon_end(channel, participants, EVIL)
                 return
             "team_building phase"
             quest_member = await avalon_build_quest_team(client, channel, participants, 0)
@@ -308,7 +350,6 @@ async def avalon(client:discord.Client, channel:discord.TextChannel):
                 break
             else:
                 vote_fail_cnt += 1
-
         "Quest phase"
         quest_success = await avalon_quest(client, channel, quest_member, participants)
         total_quest_stat[i] = 1 if quest_success else 0
@@ -336,25 +377,3 @@ async def avalon_get_participants(client:discord.Client, channel:discord.TextCha
 
     else:
         return None
-
-"""
-총 5 라운드로 진행하며, 각 라운드는 < 원정대 구성 > -> <원정 진행> 단계로 이루어진다.
-
-<원정대 구성>
-대표가 원정대를 구성할 기사를 지목
-모든 플레이어가 투표를 통해 찬/반, 찬성이 과반수이면 통과. 동수면 부결. 
--> 투표 한 번 하면 다음 사람이 대표(찬/반 관계없이)
->> 5번 거부되면 악이 즉시 승리 <<
-
-
-<원정 진행>
-원정대에 소속된 플레이어들이 원정의 성공/실패 여부 결정
-모두 성공을 내야 성공. 한 장이라도 실패가 섞여 있으면 원정 실패
->> 원정을 3번 실패하면 즉시 악의 승리 <<
-
-3회 원정 성공 시, 최후의 발악으로 멀린 암살 시도
->> 멀린이 지목되면 악의 승리 <<
->> 멀린이 지목되지 않으면 선의 승리 <<
-
-
-"""
