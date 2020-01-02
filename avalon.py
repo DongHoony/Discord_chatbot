@@ -15,7 +15,6 @@ async def avalon_setup_characters(participants, setup_code):
     # 3: added some, merlin, assassin, mordred, percival
     print(f"SETUP CODE = {setup_code}")
     players_count = len(participants)
-    r.shuffle(participants)
 
     good_count = [0, 1, 1, 1, 2, 3, 4, 4, 5, 6, 6]
     evil_count = [0, 0, 1, 2, 2, 2, 2, 3, 3, 3, 4]
@@ -102,16 +101,17 @@ async def avalon_setup_announce(global_channel:discord.TextChannel, good_players
     await message.edit(content="게임을 시작합니다.")
 
 async def avalon_setup_turn_announce(channel:discord.TextChannel, participants:deque):
-    msg = " -> ".join([x.nick for x in participants]) + " -> " + participants[0].nick
+    r.shuffle(participants)
+    msg = " -> ".join([x[0].nick for x in participants]) + " -> " + participants[0][0].nick
     await channel.send("게임 진행 순서는 다음과 같습니다.\n```" + msg + "```")
 
 async def avalon_setup(channel:discord.TextChannel, participants:deque, setup_code):
     """ DO NOT THROW PARTICIPANTS FOR ARGUMENTS BY RAW """
     good_players, evil_players = await avalon_setup_characters(deque([x for x in participants]), setup_code)
     await avalon_setup_announce(channel, good_players, evil_players)
+    participants = deque([x for x in good_players] + [y for y in evil_players])
+    print(participants)
     await avalon_setup_turn_announce(channel, participants)
-    participants = [x for x in good_players] + [y for y in evil_players]
-    print(f"AFTER SETUP : {deque(participants)}")
     return deque(participants)
 
 "RETURNS QUEST_MEMBER WHICH IS A LIST OF STRING"
@@ -189,7 +189,7 @@ async def avalon_vote_quest_team(client:discord.Client, channel:discord.channel,
     )
     embed.add_field(name="찬성", value=str(vote_yes), inline=True)
     embed.add_field(name="반대", value=str(vote_no))
-    await channel.send("@here 투표 결과입니다.", embed=embed)
+    await channel.send("투표 결과입니다.", embed=embed)
     if vote_success:
         return True
     else:
@@ -247,7 +247,7 @@ async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest
     )
     embed.add_field(name="원정 성공 표", value=str(vote_yes), inline=True)
     embed.add_field(name="원정 실패 표", value=str(vote_no))
-    await channel.send("@here 원정 결과입니다.", embed=embed)
+    await channel.send("원정 결과입니다.", embed=embed)
     if vote_success:
         return True
     else:
@@ -268,7 +268,7 @@ async def avalon_board_embed(total_quest_stat):
 async def avalon_assassinate(client:discord.Client, channel:discord.TextChannel, players:deque):
     await channel.send("무사히 3번의 여정을 끝마쳤습니다.")
     assassin = [x[0] for x in players if type(x[1]) == Assassin][0]
-    await channel.send(f"암살자 <@{assassin.id}>의 암살 계획이 남아 있습니다.\n멀린으로 의심되는 사람을 상의 후 지목해 주세요.\n`!암살 (@플레이어)`")
+    await channel.send(f"암살자의 암살 계획이 남아 있습니다.\n멀린으로 의심되는 사람을 상의 후 지목해 주세요.\n`!암살 (@플레이어)`")
     user_id = [str(x[0].id) for x in players]
 
     def check(message):
@@ -305,7 +305,7 @@ async def avalon_end(channel:discord.TextChannel, players:deque, win_side):
     for i in evil_players:
         embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>", inline=True)
 
-    await channel.send("@here 게임이 종료되었습니다.", embed=embed)
+    await channel.send("게임이 종료되었습니다.", embed=embed)
 
 async def avalon_help(channel:discord.TextChannel):
     embed1 = discord.Embed(
@@ -393,6 +393,19 @@ async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
         quest_success = await avalon_quest(client, channel, quest_member, participants, i)
         total_quest_stat[i] = 1 if quest_success else 0
 
+    # NEED TO MODIFY BELOW<
+    await channel.send(embed=await avalon_board_embed(total_quest_stat))
+    if total_quest_stat.count(0) >= 3:
+        await avalon_end(channel, participants, EVIL)
+        return
+    if total_quest_stat.count(1) == 3:
+        result = await avalon_assassinate(client, channel, participants)
+        if result:
+            await avalon_end(channel, participants, EVIL)
+            return
+        else:
+            await avalon_end(channel, participants, GOOD)
+            return
 # returns set of participants
 async def avalon_get_participants(client:discord.Client, channel:discord.TextChannel):
     participants = set()
