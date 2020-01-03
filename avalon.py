@@ -14,7 +14,7 @@ async def avalon_setup_characters(participants, setup_code):
     # 2: added some, merlin, assassin, morgana, percival
     # 3: added some, merlin, assassin, mordred, percival
     # 4: added all, merlin, assassin, morgana, percival, oberon,
-    print(f"SETUP CODE = {setup_code}")
+
     players_count = len(participants)
 
     r.shuffle(participants)
@@ -24,7 +24,7 @@ async def avalon_setup_characters(participants, setup_code):
 
     good_players = []
     evil_players = []
-
+    minion_count = servant_count = 0
     for i in range(good_count[players_count]):
         current_player = participants.popleft()
         if i == 0:
@@ -34,8 +34,10 @@ async def avalon_setup_characters(participants, setup_code):
             good_players.append([current_player, Percival()])
             print("Added Percival")
         else:
-            good_players.append([current_player, ArthursServants(i-1)])
+            good_players.append([current_player, ArthursServants(servant_count)])
+            servant_count += 1
             print("Added Servant")
+
 
     for i in range(evil_count[players_count]):
         current_player = participants.popleft()
@@ -52,11 +54,9 @@ async def avalon_setup_characters(participants, setup_code):
             evil_players.append([current_player, Oberon()])
             print("Added Oberon")
         else:
-            evil_players.append([current_player, MinionsOfMordred(i-1)])
+            evil_players.append([current_player, MinionsOfMordred(minion_count)])
+            minion_count += 1
             print("Added Minion")
-
-    print(good_players, evil_players)
-    print(len(good_players), len(evil_players))
     return good_players, evil_players
 
 # announce type_cards by dm message
@@ -69,15 +69,15 @@ async def avalon_setup_announce(global_channel:discord.TextChannel, good_players
             colour = discord.Colour.blue()
         )
         embed.set_thumbnail(url=i[1].url)
-        embed.add_field(name="선악 여부", value='선', inline=True)
+        embed.add_field(name="선악 여부", value='선')
         if type(i[1]) == Percival:
             merlins = [i[0].nick for i in good_players if type(i[1]) == Merlin] + [i[0].nick for i in evil_players if type(i[1]) == Morgana]
             r.shuffle(merlins)
-            embed.add_field(name="멀린", value=", ".join(merlins), inline=True)
+            embed.add_field(name="멀린", value=", ".join(merlins))
 
         if type(i[1]) == Merlin:
             bad_boys = [i[0].nick for i in evil_players if type(i[1]) != Mordred]
-            embed.add_field(name="악의 정체", value=", ".join(bad_boys) if bad_boys else "-", inline=True)
+            embed.add_field(name="악의 정체", value=", ".join(bad_boys) if bad_boys else "-")
 
         await channel.send("당신의 역할 카드입니다.", embed=embed)
 
@@ -90,13 +90,14 @@ async def avalon_setup_announce(global_channel:discord.TextChannel, good_players
             colour=discord.Colour.red()
         )
         embed.set_thumbnail(url=i[1].url)
-        embed.add_field(name="선악 여부", value='악', inline=True)
+        embed.add_field(name="선악 여부", value='악')
         visible_evil_names.remove(i[0].nick)
         embed.add_field(name="다른 악 플레이어", value = ", ".join(visible_evil_names) if visible_evil_names else '-')
         visible_evil_names.append(i[0].nick)
         await channel.send("당신의 역할 카드입니다.", embed=embed)
 
     message = await global_channel.send("역할 카드를 나눠드렸습니다. 3초 후 게임을 시작합니다.")
+    await global_channel.send(f"**선 {len(good_players)}명, 악 {len(evil_players)}명**")
     await asyncio.sleep(1)
     for i in range(2, -1, -1):
         await message.edit(content=f"역할 카드를 나눠드렸습니다. {i}초 후 게임을 시작합니다.")
@@ -117,14 +118,13 @@ async def avalon_setup(channel:discord.TextChannel, participants:deque, setup_co
     good_players, evil_players = await avalon_setup_characters(deque([x for x in participants]), setup_code)
     await avalon_setup_announce(channel, good_players, evil_players)
     participants = deque([x for x in good_players] + [y for y in evil_players])
-    print(*[(x[0].nick, type(x[1])) for x in participants], sep='\n')
+    # print(*[(x[0].nick, type(x[1])) for x in participants], sep='\n')
     await avalon_setup_turn_announce(channel, participants, True)
     return deque(participants)
 
 "RETURNS QUEST_MEMBER WHICH IS A LIST OF STRING"
 async def avalon_build_quest_team(client:discord.Client, channel:discord.TextChannel, players:deque, quest_num):
     leader = players[0]
-
     players_id = [str(x[0].id) for x in players]
     quest_member = []
     quest_limit = [[0, 0, 0, 0, 0],
@@ -142,17 +142,15 @@ async def avalon_build_quest_team(client:discord.Client, channel:discord.TextCha
 
     embed = discord.Embed(
         title="원정대 후보",
+        description=f"필요한 원정대 인원 : {cur_quest_limit}명",
         colour=discord.Colour.dark_gold()
     )
     for i in range(len(players)):
-        print(i)
         embed.add_field(name=players[i][0].nick, value=str(i+1), inline=False if i == 5 else True)
 
-
     await channel.send(f"현재 대표는 <@{leader[0].id}> 입니다. 원정대 {cur_quest_limit}명을 꾸려 주세요.", embed=embed)
-    await channel.send("원정대를 선정할 때는 `!원정대 (플레이어 번호) (플레이어 번호)...`를 사용합니다. ex)`!원정대 1 2`")
+    await channel.send("원정대를 선정할 때는 `!원정대 1 2`와 같이 입력합니다.")
 
-    # await channel.send("원정대를 선정할 때는 `!원정대 (@플레이어1) (@플레이어2) ...`를 사용합니다. 정확한 플레이어를 언급해주세요.")
     def check(message):
         if message.author.id == leader[0].id and (message.content.startswith("!출발") or message.content.startswith("!원정대")) and message.channel == channel:
             return True
@@ -207,7 +205,7 @@ async def avalon_vote_quest_team(client:discord.Client, channel:discord.channel,
         description="구성안이 통과되었습니다." if vote_success else "구성안이 거부되었습니다.",
         colour=discord.Colour.blue() if vote_success else discord.Colour.red()
     )
-    embed.add_field(name="찬성", value=", ".join(["<@"+ str(x) +">" for x in vote_yes]) if vote_yes else "-", inline=True)
+    embed.add_field(name="찬성", value=", ".join(["<@"+ str(x) +">" for x in vote_yes]) if vote_yes else "-")
     embed.add_field(name="반대", value=", ".join(["<@"+ str(x) +">" for x in vote_no]) if vote_no else "-", inline=False)
     await channel.send("투표 결과입니다.", embed=embed)
     if vote_success:
@@ -225,6 +223,8 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
     up = []
     down = []
     users_id = []
+
+    r.shuffle(voters)
 
     for i in voters:
         channel = await i.create_dm()
@@ -248,35 +248,28 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
         if reaction.emoji == UP_EMOJI:
             up.append(user.id)
             await message.channel.send("투표에 찬성하셨습니다." if is_quest_team_vote else "원정 성공에 투표하셨습니다.")
-            print(f"VOTED UP BY {user.id}")
         if reaction.emoji == DOWN_EMOJI:
             down.append(user.id)
             await message.channel.send("투표에 반대하셨습니다." if is_quest_team_vote else "원정 실패에 투표하셨습니다.")
-            print(f"VOTED DOWN BY {user.id}")
-
     return (up, down)
 
 async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest_team:list, players:deque, round_number):
     await channel.send("원정대에 한해, 원정 성공 여부 투표를 진행합니다.")
-    print(round_number, len(players))
     special_round = len(players) >= 7 and round_number == 3
     if special_round:
         await channel.send("이번 라운드는 실패가 2표 이상이어야 원정에 실패합니다.")
     quest_team_members = [x[0] for x in players if str(x[0].id) in quest_team]
     vote_yes, vote_no = await avalon_vote(client, quest_team_members, False)
     vote_yes, vote_no = len(vote_yes), len(vote_no)
-    if len(players) >= 7 and round_number == 3:
-        vote_success = vote_no < 2
-    else:
-        vote_success = not vote_no
+    vote_success = (vote_no < 2) if special_round else (not vote_no)
     embed = discord.Embed(
         title="원정 결과",
         description="원정 진행을 성공하였습니다." if vote_success else "원정 진행을 실패했습니다.",
         colour=discord.Colour.blue() if vote_success else discord.Colour.red()
     )
-    embed.add_field(name="원정 성공 표", value=str(vote_yes), inline=True)
+    embed.add_field(name="원정 성공 표", value=str(vote_yes))
     embed.add_field(name="원정 실패 표", value=str(vote_no))
-    await channel.send(f"원정대가 다녀왔습니다. ```{', '.join(x[0].nick for x in players if str(x[0].id) in quest_team)}```")
+    await channel.send(f"원정대가 다녀왔습니다.\n`{', '.join(x[0].nick for x in players if str(x[0].id) in quest_team)}`")
     await channel.send("원정 결과입니다.", embed=embed)
 
     msg = await channel.send("7초 후 다음 라운드를 진행합니다.")
@@ -297,8 +290,8 @@ async def avalon_board_embed(total_quest_stat):
     )
     embed.set_footer(text="원정을 세 번 실패하면 악의 승리입니다.")
     for i in range(5):
-        embed.add_field(name=f"원정 {i+1}", value="\u2B55" if total_quest_stat[i] == 1 else "\u274C" if total_quest_stat[i] == 0 else "\u2753", inline=True)
-    embed.add_field(name="-", value='-', inline=True)
+        embed.add_field(name=f"원정 {i+1}", value="\u2B55" if total_quest_stat[i] == 1 else "\u274C" if total_quest_stat[i] == 0 else "\u2753")
+    embed.add_field(name="-", value='-')
     return embed
 
 async def avalon_assassinate(client:discord.Client, channel:discord.TextChannel, players:deque):
@@ -329,17 +322,15 @@ async def avalon_assassinate(client:discord.Client, channel:discord.TextChannel,
 async def avalon_end(channel:discord.TextChannel, players:deque, win_side):
     evil_players = [x for x in players if x[1].side == EVIL]
     good_players = [x for x in players if x[1].side == GOOD]
-    print(f"EVIL : {evil_players}")
-    print(f"GOOD : {good_players}")
     embed = discord.Embed(
         title="게임 종료",
         description=("선" if win_side == GOOD else "악") + "이 이겼습니다.",
         colour=discord.Colour.red() if win_side == EVIL else discord.Colour.blue()
     )
     for i in good_players:
-        embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>", inline=True)
+        embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>")
     for i in evil_players:
-        embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>", inline=True)
+        embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>")
 
     await channel.send("게임이 종료되었습니다.", embed=embed)
 
