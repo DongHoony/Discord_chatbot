@@ -13,8 +13,11 @@ async def avalon_setup_characters(participants, setup_code):
     # 1: normal, only merlin, assassin
     # 2: added some, merlin, assassin, morgana, percival
     # 3: added some, merlin, assassin, mordred, percival
+    # 4: added all, merlin, assassin, morgana, percival, oberon,
     print(f"SETUP CODE = {setup_code}")
     players_count = len(participants)
+
+    r.shuffle(participants)
 
     good_count = [0, 1, 1, 1, 2, 3, 4, 4, 5, 6, 6]
     evil_count = [0, 0, 1, 2, 2, 2, 2, 3, 3, 3, 4]
@@ -45,6 +48,9 @@ async def avalon_setup_characters(participants, setup_code):
         elif setup_code == 3 and i == 1:
             evil_players.append([current_player, Mordred()])
             print("Added Mordred")
+        elif setup_code == 4 and i == 2:
+            evil_players.append([current_player, Oberon()])
+            print("Added Oberon")
         else:
             evil_players.append([current_player, MinionsOfMordred(i-1)])
             print("Added Minion")
@@ -111,7 +117,7 @@ async def avalon_setup(channel:discord.TextChannel, participants:deque, setup_co
     good_players, evil_players = await avalon_setup_characters(deque([x for x in participants]), setup_code)
     await avalon_setup_announce(channel, good_players, evil_players)
     participants = deque([x for x in good_players] + [y for y in evil_players])
-    print(*[(x[0].id,type(x[1])) for x in participants], sep='\n')
+    print(*[(x[0].nick, type(x[1])) for x in participants], sep='\n')
     await avalon_setup_turn_announce(channel, participants, True)
     return deque(participants)
 
@@ -168,22 +174,6 @@ async def avalon_build_quest_team(client:discord.Client, channel:discord.TextCha
             if not valid:
                 continue
             players.rotate(-1)
-            # for raw_user_id in message.content.split(" ")[1:]:
-            #     temp_quest_user_id = [x for x in re.findall("[0-9]*", raw_user_id) if x != '']
-            #     print(temp_quest_user_id)
-            #     if temp_quest_user_id == []:
-            #         await channel.send("원정대를 선정할 때는 `!원정대 (@플레이어1) (@플레이어2) ...`를 사용합니다. 정확한 플레이어를 언급해주세요.")
-            #         valid = False
-            #         break
-            #     temp_quest_user_id = temp_quest_user_id[0]
-            #     if temp_quest_user_id not in players_id:
-            #         await channel.send(f"언급한 플레이어 <@{temp_quest_user_id}>는 현재 게임에 참여하고 있지 않습니다.")
-            #         valid = False
-            #         break
-            #     quest_member.append(temp_quest_user_id)
-            # if not valid:
-            #     quest_member = []
-            #     continue
             embed = discord.Embed(
                 title=f"원정대 구성원 ({quest_num+1}차 원정)",
                 colour=discord.Colour.dark_gold()
@@ -404,23 +394,27 @@ async def avalon_end_judge(client:discord.Client, channel:discord.TextChannel, p
             return True
     return False
 
-async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
-    # type(participants) -> collections.Deque (RANDOMLY SHUFFLED)
-    participants = await avalon_get_participants(client, channel)
-    if participants == None:
-        return
-
+async def avalon_get_setupcode(client:discord.Client, channel:discord.TextChannel, starter):
     embed = discord.Embed(
         title="게임 구성",
         description="1. 기본 (멀린, 암살자)\n\n2. 약간 추가 (멀린, 암살자, 모르가나, 퍼시벌)\n\n3. 약간 추가 (멀린, 암살자, 모드레드, 퍼시벌)",
         colour=discord.Colour.gold()
     )
     await channel.send("게임 구성을 입력해주세요.", embed=embed)
-
     def check(m):
-        return m.content in ['1','2','3','4'] and m.author == starter and m.channel == channel
-    setup_code = await client.wait_for("message", check=check)
-    setup_code = int(setup_code.content)
+        return m.content in ['1', '2', '3', '4'] and m.author == starter and m.channel == channel
+    setup_code_msg = await client.wait_for("message", check=check)
+    setup_code = int(setup_code_msg.content)
+    setup_code_msg.delete()
+    return setup_code
+
+async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
+    # type(participants) -> collections.Deque (RANDOMLY SHUFFLED)
+    participants = await avalon_get_participants(client, channel, starter)
+    if participants == None:
+        return
+    setup_code = await avalon_get_setupcode(client, channel, starter)
+
     "Setup phase"
     participants = await avalon_setup(channel, deque([x for x in participants]), setup_code)
     total_quest_stat = [-1] * 5
@@ -449,14 +443,17 @@ async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
     await avalon_end_judge(client, channel, participants, total_quest_stat)
 
 # returns set of participants
-async def avalon_get_participants(client:discord.Client, channel:discord.TextChannel):
+async def avalon_get_participants(client:discord.Client, channel:discord, author):
     participants = set()
     game_valid = True
-    await channel.send("게임에 참여하시려면 60초 이내로 `!참가`를 입력해주세요.")
+    # await channel.send("게임에 참여하시려면 60초 이내로 `!참가`를 입력해주세요.")
+
+    msg = await channel.send(f"게임에 참여하시려면 하단 이모지를 추가해주세요. 시작하시려면 `!시작`을 입력해주세요.\n`제한시간 60초, 주최자 {author.nick}`")
+    await msg.add_reaction("\U0001F534")
+    cached_msg = [x for x in client.cached_messages if x.id == msg.id][0]
+
     def check(m):
-        if m.content == '!참가' and m.channel == channel and m.author not in participants:
-            participants.add(m.author)
-        return m.content == '!시작' and m.channel == channel and 1 <= len(participants) <= 10
+        return m.content == '!시작' and m.channel == channel and m.author == author
     try:
         await client.wait_for('message', check=check, timeout=60)
     except asyncio.TimeoutError:
@@ -464,10 +461,12 @@ async def avalon_get_participants(client:discord.Client, channel:discord.TextCha
         game_valid = False
 
     if game_valid:
-        await channel.send(f"{len(participants)}명이 게임에 참여합니다.")
-        temp = list(participants)
-        r.shuffle(temp)
-        return deque(temp)
-
+        async for user in cached_msg.reactions[0].users():
+            if user.bot == False:
+                participants.add(user)
+        await channel.send(f"아래 {len(participants)}명이 게임에 참여합니다.\n`{', '.join([x.nick for x in participants])}`")
+        participants = deque(participants)
+        r.shuffle(participants)
+        return participants
     else:
         return None
