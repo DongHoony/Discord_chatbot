@@ -208,15 +208,17 @@ async def avalon_vote_quest_team(client:discord.Client, channel:discord.channel,
         await channel.send(f"현재 투표가 총 `{vote_fail_cnt}회` 거부되었습니다. `5회` 투표가 거부되면 즉시 악이 승리합니다.")
     await asyncio.sleep(2)
     vote_yes, vote_no = await avalon_vote(client, [x[0] for x in players], True)
-    vote_success = vote_yes > vote_no
+    r.shuffle(vote_yes)
+    r.shuffle(vote_no)
+    vote_success = len(vote_yes) > len(vote_no)
 
     embed = discord.Embed(
         title="투표 결과",
         description="구성안이 통과되었습니다." if vote_success else "구성안이 거부되었습니다.",
         colour=discord.Colour.blue() if vote_success else discord.Colour.red()
     )
-    embed.add_field(name="찬성", value=str(vote_yes), inline=True)
-    embed.add_field(name="반대", value=str(vote_no))
+    embed.add_field(name="찬성", value=", ".join(["<@"+ str(x) +">" for x in vote_yes]) if vote_yes else "-", inline=True)
+    embed.add_field(name="반대", value=", ".join(["<@"+ str(x) +">" for x in vote_no]) if vote_no else "-", inline=False)
     await channel.send("투표 결과입니다.", embed=embed)
     if vote_success:
         return True
@@ -230,7 +232,8 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
     msgs = []
     channels = []
     max_voters = len(voters)
-    up = down = 0
+    up = []
+    down = []
     users_id = []
 
     for i in voters:
@@ -253,11 +256,14 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
         message = msgs[users_id.index(user.id)]
         await message.delete()
         if reaction.emoji == UP_EMOJI:
-            up += 1
+            up.append(user.id)
             await message.channel.send("투표에 찬성하셨습니다." if is_quest_team_vote else "원정 성공에 투표하셨습니다.")
+            print(f"VOTED UP BY {user.id}")
         if reaction.emoji == DOWN_EMOJI:
-            down += 1
+            down.append(user.id)
             await message.channel.send("투표에 반대하셨습니다." if is_quest_team_vote else "원정 실패에 투표하셨습니다.")
+            print(f"VOTED DOWN BY {user.id}")
+
     return (up, down)
 
 async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest_team:list, players:deque, round_number):
@@ -268,6 +274,7 @@ async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest
         await channel.send("이번 라운드는 실패가 2표 이상이어야 원정에 실패합니다.")
     quest_team_members = [x[0] for x in players if str(x[0].id) in quest_team]
     vote_yes, vote_no = await avalon_vote(client, quest_team_members, False)
+    vote_yes, vote_no = len(vote_yes), len(vote_no)
     if len(players) >= 7 and round_number == 3:
         vote_success = vote_no < 2
     else:
