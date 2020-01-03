@@ -71,7 +71,7 @@ async def avalon_setup_announce(global_channel:discord.TextChannel, good_players
 
         if type(i[1]) == Merlin:
             bad_boys = [i[0].nick for i in evil_players if type(i[1]) != Mordred]
-            embed.add_field(name="악의 정체", value=", ".join(bad_boys), inline=True)
+            embed.add_field(name="악의 정체", value=", ".join(bad_boys) if bad_boys else "-", inline=True)
 
         await channel.send("당신의 역할 카드입니다.", embed=embed)
 
@@ -99,10 +99,12 @@ async def avalon_setup_announce(global_channel:discord.TextChannel, good_players
         await asyncio.sleep(1)
     await message.edit(content="게임을 시작합니다.")
 
-async def avalon_setup_turn_announce(channel:discord.TextChannel, participants:deque):
-    r.shuffle(participants)
-    msg = " -> ".join([x[0].nick for x in participants]) + " -> " + participants[0][0].nick
-    await channel.send("게임 진행 순서는 다음과 같습니다.\n```" + msg + "```")
+async def avalon_setup_turn_announce(channel:discord.TextChannel, participants:deque, shuffle_state):
+    if shuffle_state:
+        r.shuffle(participants)
+    else:
+        msg = " -> ".join([x[0].nick for x in participants]) + " -> " + participants[0][0].nick
+        await channel.send("게임 진행 순서는 다음과 같습니다.\n```" + msg + "```")
 
 async def avalon_setup(channel:discord.TextChannel, participants:deque, setup_code):
     """ DO NOT THROW PARTICIPANTS FOR ARGUMENTS BY RAW """
@@ -110,14 +112,13 @@ async def avalon_setup(channel:discord.TextChannel, participants:deque, setup_co
     await avalon_setup_announce(channel, good_players, evil_players)
     participants = deque([x for x in good_players] + [y for y in evil_players])
     print(*[(x[0].id,type(x[1])) for x in participants], sep='\n')
-    await avalon_setup_turn_announce(channel, participants)
+    await avalon_setup_turn_announce(channel, participants, True)
     return deque(participants)
 
 "RETURNS QUEST_MEMBER WHICH IS A LIST OF STRING"
 async def avalon_build_quest_team(client:discord.Client, channel:discord.TextChannel, players:deque, quest_num):
     leader = players[0]
-    print(type(players[0]))
-    players.rotate(-1)
+
     players_id = [str(x[0].id) for x in players]
     quest_member = []
     quest_limit = [[0, 0, 0, 0, 0],
@@ -132,38 +133,65 @@ async def avalon_build_quest_team(client:discord.Client, channel:discord.TextCha
                  [3, 4, 4, 5, 5],
                  [3, 4, 4, 5, 5]]
     cur_quest_limit = quest_limit[len(players)][quest_num]
-    await channel.send(f"현재 대표는 <@{leader[0].id}> 입니다. 원정단 {cur_quest_limit}명을 꾸려 주세요.")
-    await channel.send("원정단을 선정할 때는 `!원정단 (@플레이어1) (@플레이어2) ...`를 사용합니다. 정확한 플레이어를 언급해주세요.")
+
+    embed = discord.Embed(
+        title="원정대 후보",
+        colour=discord.Colour.dark_gold()
+    )
+    for i in range(len(players)):
+        print(i)
+        embed.add_field(name=players[i][0].nick, value=str(i+1), inline=False if i == 5 else True)
+
+
+    await channel.send(f"현재 대표는 <@{leader[0].id}> 입니다. 원정대 {cur_quest_limit}명을 꾸려 주세요.", embed=embed)
+    await channel.send("원정대를 선정할 때는 `!원정대 (플레이어 번호) (플레이어 번호)...`를 사용합니다. ex)`!원정대 1 2`")
+
+    # await channel.send("원정대를 선정할 때는 `!원정대 (@플레이어1) (@플레이어2) ...`를 사용합니다. 정확한 플레이어를 언급해주세요.")
     def check(message):
-        if message.author.id == leader[0].id and (message.content.startswith("!출발") or message.content.startswith("!원정단")) and message.channel == channel:
+        if message.author.id == leader[0].id and (message.content.startswith("!출발") or message.content.startswith("!원정대")) and message.channel == channel:
             return True
         return False
     while 1:
         valid = True
         message = await client.wait_for("message", check=check)
-        if message.content.startswith("!원정단"):
-
+        if message.content.startswith("!원정대"):
             if len(message.content.split(" "))-1 != cur_quest_limit:
-                await channel.send(f"입력하신 원정단 구성원 수`({len(message.content.split(' '))-1})`와 현재 구성해야하는 원정단 구성원 수`({cur_quest_limit})`가 맞지 않습니다.")
+                await channel.send(f"입력하신 원정대 구성원 수`({len(message.content.split(' '))-1})`와 현재 구성해야하는 원정대 구성원 수`({cur_quest_limit})`가 맞지 않습니다.")
                 continue
-
-            for raw_user_id in message.content.split(" ")[1:]:
-                temp_quest_user_id = [x for x in re.findall("[0-9]*", raw_user_id) if x != '']
-                print(temp_quest_user_id)
-                if temp_quest_user_id == []:
-                    await channel.send("원정단을 선정할 때는 `!원정단 (@플레이어1) (@플레이어2) ...`를 사용합니다. 정확한 플레이어를 언급해주세요.")
+            user_input_possibility = [str(x) for x in range(1, len(players)+1)]
+            for user_number_in_str in message.content.split(" ")[1:]:
+                if user_number_in_str not in user_input_possibility:
+                    await channel.send(f"입력하신 문자 `({user_number_in_str})`가 후보 번호에 있지 않습니다. 정확히 입력해주세요. ex)`!원정대 1 2`")
                     valid = False
                     break
-                temp_quest_user_id = temp_quest_user_id[0]
-                if temp_quest_user_id not in players_id:
-                    await channel.send(f"언급한 플레이어 <@{temp_quest_user_id}>는 현재 게임에 참여하고 있지 않습니다.")
-                    valid = False
-                    break
-                quest_member.append(temp_quest_user_id)
+                quest_member.append(str(players[int(user_number_in_str)-1][0].id))
             if not valid:
-                quest_member = []
                 continue
-            await channel.send(f"원정단을 꾸렸습니다. 표결을 진행하려면 `!출발`을 입력해주세요.\n{', '.join(['<@'+x+'>' for x in quest_member])} ")
+            players.rotate(-1)
+            # for raw_user_id in message.content.split(" ")[1:]:
+            #     temp_quest_user_id = [x for x in re.findall("[0-9]*", raw_user_id) if x != '']
+            #     print(temp_quest_user_id)
+            #     if temp_quest_user_id == []:
+            #         await channel.send("원정대를 선정할 때는 `!원정대 (@플레이어1) (@플레이어2) ...`를 사용합니다. 정확한 플레이어를 언급해주세요.")
+            #         valid = False
+            #         break
+            #     temp_quest_user_id = temp_quest_user_id[0]
+            #     if temp_quest_user_id not in players_id:
+            #         await channel.send(f"언급한 플레이어 <@{temp_quest_user_id}>는 현재 게임에 참여하고 있지 않습니다.")
+            #         valid = False
+            #         break
+            #     quest_member.append(temp_quest_user_id)
+            # if not valid:
+            #     quest_member = []
+            #     continue
+            embed = discord.Embed(
+                title=f"원정대 구성원 ({quest_num+1}차 원정)",
+                colour=discord.Colour.dark_gold()
+            )
+            for i in range(len(quest_member)):
+                embed.add_field(name=f"원정대 {i+1}", value=f"<@{quest_member[i]}>")
+
+            await channel.send(f"원정대를 꾸렸습니다. 표결을 진행하려면 `!출발`을 입력해주세요.", embed=embed)
             continue
         if message.content.startswith("!출발"):
             if len(quest_member) != cur_quest_limit:
@@ -171,6 +199,7 @@ async def avalon_build_quest_team(client:discord.Client, channel:discord.TextCha
                 continue
             else:
                 break
+
     return quest_member
 
 async def avalon_vote_quest_team(client:discord.Client, channel:discord.channel, quest_team:list, players:deque, vote_fail_cnt):
@@ -250,8 +279,14 @@ async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest
     )
     embed.add_field(name="원정 성공 표", value=str(vote_yes), inline=True)
     embed.add_field(name="원정 실패 표", value=str(vote_no))
-    await channel.send(f"원정단이 다녀왔습니다. ```{', '.join(x[0].nick for x in players if str(x[0].id) in quest_team)}```")
+    await channel.send(f"원정대가 다녀왔습니다. ```{', '.join(x[0].nick for x in players if str(x[0].id) in quest_team)}```")
     await channel.send("원정 결과입니다.", embed=embed)
+
+    msg = await channel.send("7초 후 다음 라운드를 진행합니다.")
+    for i in range(7, -1, -1):
+        await msg.edit(content=f"{i}초 후 다음 라운드를 진행합니다.")
+        await asyncio.sleep(1)
+
     if vote_success:
         return True
     else:
@@ -384,6 +419,7 @@ async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
     total_quest_stat = [-1] * 5
     "===== repeat below - 5 times ====="
     for i in range(5):
+        await avalon_setup_turn_announce(channel, participants, False)
         valid = await avalon_end_judge(client, channel, participants, total_quest_stat)
         if valid:
             return
@@ -393,6 +429,7 @@ async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
                 await avalon_end(channel, participants, EVIL)
                 return
             "team_building phase"
+
             quest_member = await avalon_build_quest_team(client, channel, participants, i)
             vote_success = await avalon_vote_quest_team(client, channel, quest_member, participants, vote_fail_cnt)
             if vote_success:
