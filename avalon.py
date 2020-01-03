@@ -25,6 +25,13 @@ async def avalon_setup_characters(participants, setup_code):
     good_players = []
     evil_players = []
     minion_count = servant_count = 0
+
+    good_characters = {"merlin":Merlin(), "percival":Percival(), "servant_1":ArthursServants(0),
+                       "servant_2":ArthursServants(1), "servant_3":ArthursServants(2), "servant_4":ArthursServants(3),
+                       "servant_5":ArthursServants(4)}
+    evil_characters = {"assassin":Assassin(), "mordred":Mordred(), "morgana":Morgana(), "oberon":Oberon(),
+                       "minion_1":MinionsOfMordred(0), "minion_2":MinionsOfMordred(1), "minion_3":MinionsOfMordred(2)}
+
     for i in range(good_count[players_count]):
         current_player = participants.popleft()
         if i == 0:
@@ -195,7 +202,7 @@ async def avalon_vote_quest_team(client:discord.Client, channel:discord.channel,
     if vote_fail_cnt:
         await channel.send(f"현재 투표가 총 `{vote_fail_cnt}회` 거부되었습니다. `5회` 투표가 거부되면 즉시 악이 승리합니다.")
     await asyncio.sleep(2)
-    vote_yes, vote_no = await avalon_vote(client, [x[0] for x in players], True)
+    vote_yes, vote_no = await avalon_vote(client, [x for x in players], True)
     r.shuffle(vote_yes)
     r.shuffle(vote_no)
     vote_success = len(vote_yes) > len(vote_no)
@@ -225,14 +232,16 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
     users_id = []
 
     r.shuffle(voters)
-
     for i in voters:
-        channel = await i.create_dm()
+        channel = await i[0].create_dm()
         channels.append(channel)
         users_id.append(channel.recipient.id)
         message = await channel.send(("원정대 구성에 관한 " if is_quest_team_vote else "원정 결과에 대한 ") + "투표를 진행합니다.\n투표 이후 메시지가 사라지지 않으면 다시 투표해 주세요.")
+        if not is_quest_team_vote and i[1].side == GOOD:
+            await channel.send("**선은 원정 결과에 대한 투표에 성공표만 낼 수 있습니다.**")
         await message.add_reaction(UP_EMOJI)
-        await message.add_reaction(DOWN_EMOJI)
+        if is_quest_team_vote or (not is_quest_team_vote and i[1].side == EVIL):
+            await message.add_reaction(DOWN_EMOJI)
         msgs.append(message)
 
     def check(reaction, user):
@@ -255,10 +264,11 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
 
 async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest_team:list, players:deque, round_number):
     await channel.send("원정대에 한해, 원정 성공 여부 투표를 진행합니다.")
+    r.shuffle(players)
     special_round = len(players) >= 7 and round_number == 3
     if special_round:
         await channel.send("이번 라운드는 실패가 2표 이상이어야 원정에 실패합니다.")
-    quest_team_members = [x[0] for x in players if str(x[0].id) in quest_team]
+    quest_team_members = [x for x in players if str(x[0].id) in quest_team]
     vote_yes, vote_no = await avalon_vote(client, quest_team_members, False)
     vote_yes, vote_no = len(vote_yes), len(vote_no)
     vote_success = (vote_no < 2) if special_round else (not vote_no)
@@ -388,7 +398,7 @@ async def avalon_end_judge(client:discord.Client, channel:discord.TextChannel, p
 async def avalon_get_setupcode(client:discord.Client, channel:discord.TextChannel, starter):
     embed = discord.Embed(
         title="게임 구성",
-        description="1. 기본 (멀린, 암살자)\n\n2. 약간 추가 (멀린, 암살자, 모르가나, 퍼시벌)\n\n3. 약간 추가 (멀린, 암살자, 모드레드, 퍼시벌)",
+        description="1. 기본 (멀린, 암살자)\n\n2. 약간 추가 (멀린, 암살자, 모르가나, 퍼시벌)\n\n3. 약간 추가 (멀린, 암살자, 모드레드, 퍼시벌)\n\n4. 많이 추가 (멀린, 암살자, 모드레드, 퍼시벌, 오베론)",
         colour=discord.Colour.gold()
     )
     await channel.send("게임 구성을 입력해주세요.", embed=embed)
@@ -396,7 +406,7 @@ async def avalon_get_setupcode(client:discord.Client, channel:discord.TextChanne
         return m.content in ['1', '2', '3', '4'] and m.author == starter and m.channel == channel
     setup_code_msg = await client.wait_for("message", check=check)
     setup_code = int(setup_code_msg.content)
-    setup_code_msg.delete()
+    await setup_code_msg.delete()
     return setup_code
 
 async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
@@ -429,7 +439,7 @@ async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
             else:
                 vote_fail_cnt += 1
         "Quest phase"
-        quest_success = await avalon_quest(client, channel, quest_member, participants, i)
+        quest_success = await avalon_quest(client, channel, quest_member, [x for x in participants], i)
         total_quest_stat[i] = 1 if quest_success else 0
     await avalon_end_judge(client, channel, participants, total_quest_stat)
 
