@@ -448,7 +448,7 @@ async def avalon(client:discord.Client, channel:discord.TextChannel, starter):
 
 # returns set of participants
 async def avalon_get_participants(client:discord.Client, channel:discord, author):
-    participants = set()
+
     game_valid = True
     # await channel.send("게임에 참여하시려면 60초 이내로 `!참가`를 입력해주세요.")
 
@@ -458,19 +458,29 @@ async def avalon_get_participants(client:discord.Client, channel:discord, author
 
     def check(m):
         return m.content == '!시작' and m.channel == channel and m.author == author
-    try:
-        await client.wait_for('message', check=check, timeout=60)
-    except asyncio.TimeoutError:
-        await channel.send("게임 모집 시간이 초과되었습니다. 진행을 취소합니다.")
-        game_valid = False
 
-    if game_valid:
+    already_noticed = False
+    while 1:
+        participants = set()
+        try:
+            start_message = await client.wait_for('message', check=check, timeout=60)
+        except asyncio.TimeoutError:
+            await channel.send("게임 모집 시간이 초과되었습니다. 진행을 취소합니다.")
+            await start_message.delete()
+            return None
+        await start_message.delete()
         async for user in cached_msg.reactions[0].users():
             if user.bot == False:
                 participants.add(user)
+        if not 5 <= len(participants) <= 10:
+            lack_message_new = await channel.send(f"플레이어가 부족합니다. `5 ~ 10명`의 플레이어가 필요합니다. (현재 `{len(participants)}`명)")
+            if already_noticed:
+                await lack_message_old.delete()
+            lack_message_old = lack_message_new
+            already_noticed = True
+            continue
         await channel.send(f"아래 {len(participants)}명이 게임에 참여합니다.\n`{', '.join([x.nick for x in participants])}`")
+        await start_message.delete()
         participants = deque(participants)
         r.shuffle(participants)
         return participants
-    else:
-        return None

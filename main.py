@@ -40,6 +40,7 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+
     if message.author.bot:
         return None
 
@@ -62,9 +63,11 @@ async def on_message(message):
     if message.content.startswith("!가위바위보"):
         await rsp(client, message.channel)
 
+
     if message.content.startswith("!avl"):
         if message.content == "!avl help":
             await avalon_help(message.channel)
+
         elif message.content == "!avl":
             await avalon(client, message.channel, message.author)
 
