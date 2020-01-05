@@ -165,12 +165,14 @@ async def avalon_build_quest_team(client:discord.Client, channel:discord.TextCha
     while 1:
         valid = True
         message = await client.wait_for("message", check=check)
-        if message.content.startswith("!원정대"):
-            if len(message.content.split(" "))-1 != cur_quest_limit:
-                await channel.send(f"입력하신 원정대 구성원 수`({len(message.content.split(' '))-1})`와 현재 구성해야하는 원정대 구성원 수`({cur_quest_limit})`가 맞지 않습니다.")
+        message_content = message.content
+        await message.delete()
+        if message_content.startswith("!원정대"):
+            if len(message_content.split(" "))-1 != cur_quest_limit:
+                await channel.send(f"입력하신 원정대 구성원 수`({len(message_content.split(' '))-1})`와 현재 구성해야하는 원정대 구성원 수`({cur_quest_limit})`가 맞지 않습니다.")
                 continue
             user_input_possibility = [str(x) for x in range(1, len(players)+1)]
-            for user_number_in_str in message.content.split(" ")[1:]:
+            for user_number_in_str in message_content.split(" ")[1:]:
                 if user_number_in_str not in user_input_possibility:
                     await channel.send(f"입력하신 문자 `({user_number_in_str})`가 후보 번호에 있지 않습니다. 정확히 입력해주세요. ex)`!원정대 1 2`")
                     valid = False
@@ -188,7 +190,8 @@ async def avalon_build_quest_team(client:discord.Client, channel:discord.TextCha
 
             await channel.send(f"원정대를 꾸렸습니다. 표결을 진행하려면 `!출발`을 입력해주세요.", embed=embed)
             continue
-        if message.content.startswith("!출발"):
+        if message_content.startswith("!출발"):
+
             if len(quest_member) != cur_quest_limit:
                 await channel.send(f"원정에 떠나기 위한 구성원의 수`({cur_quest_limit})`와 현재 구성원의 수`({len(quest_member)})`가 다릅니다.")
                 continue
@@ -254,10 +257,12 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
         await message.delete()
         if reaction.emoji == UP_EMOJI:
             up.append(user.id)
-            await message.channel.send("투표에 찬성하셨습니다." if is_quest_team_vote else "원정 성공에 투표하셨습니다.")
+            vote_message = await message.channel.send("투표에 찬성하셨습니다." if is_quest_team_vote else "원정 성공에 투표하셨습니다.")
         if reaction.emoji == DOWN_EMOJI:
             down.append(user.id)
-            await message.channel.send("투표에 반대하셨습니다." if is_quest_team_vote else "원정 실패에 투표하셨습니다.")
+            vote_message = await message.channel.send("투표에 반대하셨습니다." if is_quest_team_vote else "원정 실패에 투표하셨습니다.")
+        await asyncio.sleep(1.5)
+        await vote_message.delete()
     return (up, down)
 
 async def avalon_quest(client:discord.Client, channel:discord.TextChannel, quest_team:list, players:deque, round_number):
