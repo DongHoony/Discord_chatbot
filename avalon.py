@@ -341,9 +341,9 @@ async def avalon_end(channel:discord.TextChannel, players:deque, win_side):
         colour=discord.Colour.red() if win_side == EVIL else discord.Colour.blue()
     )
     for i in good_players:
-        embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>")
+        embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>" if good_players else "-")
     for i in evil_players:
-        embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>")
+        embed.add_field(name=i[1].name_kr, value=f"<@{i[0].id}>" if evil_players else "-")
 
     await channel.send("게임이 종료되었습니다.", embed=embed)
 
