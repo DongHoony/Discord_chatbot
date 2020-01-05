@@ -236,7 +236,7 @@ async def avalon_vote(client:discord.Client, voters:list, is_quest_team_vote:boo
         channel = await i[0].create_dm()
         channels.append(channel)
         users_id.append(channel.recipient.id)
-        message = await channel.send(("원정대 구성에 관한 " if is_quest_team_vote else "원정 결과에 대한 ") + "투표를 진행합니다.\n투표 이후 메시지가 사라지지 않으면 다시 투표해 주세요." + ("**선은 원정 결과에 대한 투표에 성공표만 낼 수 있습니다.**")if is_quest_team_vote or (not is_quest_team_vote and i[1].side == EVIL) else "")
+        message = await channel.send(("원정대 구성에 관한 " if is_quest_team_vote else "원정 결과에 대한 ") + "투표를 진행합니다.\n투표 이후 메시지가 사라지지 않으면 다시 투표해 주세요." + ("**선은 원정 결과에 대한 투표에 성공표만 낼 수 있습니다.**"if is_quest_team_vote or (not is_quest_team_vote and i[1].side == EVIL) else ""))
         await message.add_reaction(UP_EMOJI)
         if is_quest_team_vote or (not is_quest_team_vote and i[1].side == EVIL):
             await message.add_reaction(DOWN_EMOJI)
