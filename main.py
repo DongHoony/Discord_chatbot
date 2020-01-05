@@ -68,5 +68,8 @@ async def on_message(message):
         elif message.content == "!avl":
             await avalon(client, message.channel, message.author)
 
+    if message.content.startswith("!p"):
+        # user = await client.get_user(message.author.id)
+        await message.channel.send(message.author.id, "Hello")
 client.run(TOKEN)
 
