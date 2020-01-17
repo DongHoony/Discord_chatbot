@@ -1,9 +1,12 @@
-#-*- coding:utf-8 -*-
+#-*- coding: utf-8 -*-
+
 import discord
-client = discord.Client()
-TOKEN = "NjYwNDk2NjQwNTc0MDk1NDI2.XgnvHQ.zkFv6_akDO4k4GqX1rPlDXun1dA"
 from rsp import *
 from avalon import *
+import economy
+
+client = discord.Client()
+TOKEN = "NjYwNDk2NjQwNTc0MDk1NDI2.XgnvHQ.zkFv6_akDO4k4GqX1rPlDXun1dA"
 
 async def add_reaction_outsider(message, name_only=False):
     await message.add_reaction(":rla:636572608896172042")
@@ -74,5 +77,9 @@ async def on_message(message):
     if message.content.startswith("!p"):
         # user = await client.get_user(message.author.id)
         await message.channel.send(message.author.id, "Hello")
+
+    if message.content.startswith("!e"):
+        await economy.init(message.guild, message.channel)
+
 client.run(TOKEN)
 
