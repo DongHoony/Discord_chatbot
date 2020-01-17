@@ -16,7 +16,7 @@ async def get_participants(game_name:str, client:discord.Client, channel:discord
             start_message = await client.wait_for('message', check=check, timeout=60)
         except asyncio.TimeoutError:
             await channel.send("게임 모집 시간이 초과되었습니다. 진행을 취소합니다.")
-            await start_message.delete()
+            await msg.delete()
             return None
         await start_message.delete()
         async for user in cached_msg.reactions[0].users():
