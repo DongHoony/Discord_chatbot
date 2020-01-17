@@ -133,6 +133,7 @@ async def avalon_setup(channel:discord.TextChannel, participants:deque, setup_co
 "RETURNS QUEST_MEMBER WHICH IS A LIST OF STRING"
 async def avalon_build_quest_team(client:discord.Client, channel:discord.TextChannel, players:deque, quest_num):
     leader = players[0]
+    quest_member = []
     players_id = [str(x[0].id) for x in players]
     quest_limit = [[0, 0, 0, 0, 0],
                  [1, 1, 1, 1, 1],
@@ -162,13 +163,15 @@ async def avalon_build_quest_team(client:discord.Client, channel:discord.TextCha
         if message.author.id == leader[0].id and (message.content.startswith("!출발") or message.content.startswith("!원정대")) and message.channel == channel:
             return True
         return False
+
     while 1:
-        quest_member = []
+
         valid = True
         message = await client.wait_for("message", check=check)
         message_content = message.content
         await message.delete()
         if message_content.startswith("!원정대"):
+            quest_member = []
             if len(message_content.split(" "))-1 != cur_quest_limit:
                 await channel.send(f"입력하신 원정대 구성원 수`({len(message_content.split(' '))-1})`와 현재 구성해야하는 원정대 구성원 수`({cur_quest_limit})`가 맞지 않습니다.")
                 continue
@@ -181,7 +184,7 @@ async def avalon_build_quest_team(client:discord.Client, channel:discord.TextCha
                 quest_member.append(str(players[int(user_number_in_str)-1][0].id))
             if not valid:
                 continue
-            players.rotate(-1)
+
             embed = discord.Embed(
                 title=f"원정대 구성원 ({quest_num+1}차 원정)",
                 colour=discord.Colour.dark_gold()
@@ -198,7 +201,7 @@ async def avalon_build_quest_team(client:discord.Client, channel:discord.TextCha
                 continue
             else:
                 break
-
+    players.rotate(-1)
     return quest_member
 
 async def avalon_vote_quest_team(client:discord.Client, channel:discord.channel, quest_team:list, players:deque, vote_fail_cnt):
