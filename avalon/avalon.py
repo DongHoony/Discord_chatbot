@@ -1,10 +1,20 @@
 import discord
 import asyncio
-from avalon_character import *
+from avalon.avalon_character import *
 from collections import deque
 import random as r
 import re
 import game
+
+
+async def avalon_set_role(participants, setup_code):
+    good_characters = {"merlin": Merlin(), "percival": Percival(), "servant_1": ArthursServants(0),
+                       "servant_2": ArthursServants(1), "servant_3": ArthursServants(2),
+                       "servant_4": ArthursServants(3),
+                       "servant_5": ArthursServants(4)}
+    evil_characters = {"assassin": Assassin(), "mordred": Mordred(), "morgana": Morgana(), "oberon": Oberon(),
+                       "minion_1": MinionsOfMordred(0), "minion_2": MinionsOfMordred(1),
+                       "minion_3": MinionsOfMordred(2)}
 
 async def avalon_setup_characters(participants, setup_code):
     # Players: 5 6 7 8 9 10
@@ -17,7 +27,6 @@ async def avalon_setup_characters(participants, setup_code):
     # 4: added all, merlin, assassin, morgana, percival, oberon,
 
     players_count = len(participants)
-
     r.shuffle(participants)
 
     good_count = [0, 1, 1, 1, 2, 3, 4, 4, 5, 6, 6]
@@ -26,12 +35,6 @@ async def avalon_setup_characters(participants, setup_code):
     good_players = []
     evil_players = []
     minion_count = servant_count = 0
-
-    good_characters = {"merlin":Merlin(), "percival":Percival(), "servant_1":ArthursServants(0),
-                       "servant_2":ArthursServants(1), "servant_3":ArthursServants(2), "servant_4":ArthursServants(3),
-                       "servant_5":ArthursServants(4)}
-    evil_characters = {"assassin":Assassin(), "mordred":Mordred(), "morgana":Morgana(), "oberon":Oberon(),
-                       "minion_1":MinionsOfMordred(0), "minion_2":MinionsOfMordred(1), "minion_3":MinionsOfMordred(2)}
 
     for i in range(good_count[players_count]):
         current_player = participants.popleft()
@@ -46,16 +49,15 @@ async def avalon_setup_characters(participants, setup_code):
             servant_count += 1
             print("Added Servant")
 
-
     for i in range(evil_count[players_count]):
         current_player = participants.popleft()
         if i == 0:
             evil_players.append([current_player, Assassin()])
             print("Added Assassin")
-        elif setup_code == 2 and i == 1:
+        elif setup_code in (2, 4) and i == 1:
             evil_players.append([current_player, Morgana()])
             print("Added Morgana")
-        elif setup_code == 3 and i == 1:
+        elif setup_code in (3, 4) and i == 1:
             evil_players.append([current_player, Mordred()])
             print("Added Mordred")
         elif setup_code == 4 and i == 2:

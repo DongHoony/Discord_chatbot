@@ -31,11 +31,13 @@ async def rsp_judge(hand_1, hand_2):
 
 async def rsp(client:discord.Client, channel):
     rsp_list = ["\u270A", "\u270C", "\u270B"]
+    msg_list = []
     participants = set()
     await channel.send("게임에 참여하시려면 30초 이내로 `!참가` 를 입력해주세요.")
     def check(m):
         if m.content == '!참가' and m.channel == channel:
             participants.add(m.author)
+            msg_list.append(m)
         return len(participants) == 2
     try:
         await client.wait_for('message', check=check, timeout=30)
@@ -43,10 +45,12 @@ async def rsp(client:discord.Client, channel):
         await channel.send("게임 모집 시간이 초과되었습니다. 진행을 취소합니다.")
         return
 
+    for message in msg_list:
+        await message.delete()
+
     player1, player2 = list(participants)
     await channel.send("게임을 시작합니다. 개인 메시지를 확인해 주세요.")
-    # player1 = player1_message.author
-    # player2 = player2_message.author
+
     is_draw = False
     while 1:
         player1_info_message = await rsp_dm(player1, is_draw)
@@ -70,4 +74,9 @@ async def rsp(client:discord.Client, channel):
     embed.add_field(name="손", value=f"{rsp_list[winner_hand]} : {rsp_list[loser_hand]}", inline=False)
     await channel.send(embed=embed)
     await channel.send(f"<@{winner_id}> 승!")
-    return
+    return winner[1].id, loser[1].id
+import rsp_advanced.rsp_db as rsp_db
+
+async def rsp_cycle(client, channel):
+    winner, loser = await rsp(client, channel)
+    rsp_db.save_result(winner, loser)

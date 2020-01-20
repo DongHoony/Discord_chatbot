@@ -1,8 +1,7 @@
 #-*- coding: utf-8 -*-
 
-import discord
-from rsp import *
-from avalon import *
+import rsp_advanced.rsp_db, rsp_advanced.rsp
+from avalon.avalon import *
 import economy
 
 client = discord.Client()
@@ -63,10 +62,6 @@ async def on_message(message):
     if "아싸" in message.content:
         await add_reaction_outsider(message, True)
 
-    if message.content.startswith("!가위바위보"):
-        await rsp(client, message.channel)
-
-
     if message.content.startswith("!avl"):
         if message.content == "!avl help":
             await avalon_help(message.channel)
@@ -74,9 +69,12 @@ async def on_message(message):
         elif message.content == "!avl":
             await avalon(client, message.channel, message.author)
 
-    if message.content.startswith("!p"):
-        # user = await client.get_user(message.author.id)
-        await message.channel.send(message.author.id, "Hello")
+    if message.content.startswith("!rsp"):
+        if message.content == ("!rsp init"):
+            await rsp_advanced.rsp_db.init(message.guild, message.channel)
+        if message.content == ("!rsp"):
+            await rsp_advanced.rsp.rsp_cycle(client, message.channel)
+
 
     if message.content.startswith("!e"):
         await economy.init(message.guild, message.channel)
