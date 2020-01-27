@@ -3,6 +3,7 @@
 import rsp_advanced.rsp_db, rsp_advanced.rsp
 from avalon.avalon import *
 import economy
+import army_timer
 
 client = discord.Client()
 TOKEN = "NjYwNDk2NjQwNTc0MDk1NDI2.XgnvHQ.zkFv6_akDO4k4GqX1rPlDXun1dA"
@@ -78,6 +79,11 @@ async def on_message(message):
 
     if message.content.startswith("!e"):
         await economy.init(message.guild, message.channel)
+
+    if message.content.startswith("!군바"):
+        await message.delete()
+        await army_timer.cycle(message.channel, message)
+
 
 client.run(TOKEN)
 
