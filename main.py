@@ -81,7 +81,6 @@ async def on_message(message):
         await economy.init(message.guild, message.channel)
 
     if message.content.startswith("!군바"):
-        await message.delete()
         await army_timer.cycle(message.channel, message)
 
 
