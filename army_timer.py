@@ -25,7 +25,7 @@ def get_name(string):
         return "신나무"
     if "용진" in string or "사과나무" in string:
         return "김용진"
-    if "겨레" in string or "아싸" in string:
+    if "겨레" in string or "아싸" in string or "수박" in string:
         return "김겨레"
     else:
         return ""
