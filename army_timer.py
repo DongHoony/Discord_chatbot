@@ -19,7 +19,6 @@ async def cycle(channel, command):
         return -1
 
     id = row[1][3:-1]
-    print(id)
     if id not in id_to_name:
         return -1
     name = id_to_name[id]
