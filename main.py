@@ -6,7 +6,9 @@ import economy
 import army_timer
 
 client = discord.Client()
-TOKEN = "NjYwNDk2NjQwNTc0MDk1NDI2.XgnvHQ.zkFv6_akDO4k4GqX1rPlDXun1dA"
+file = open(r"TOKEN", "r")
+TOKEN = file.read()
+file.close()
 
 async def add_reaction_outsider(message, name_only=False):
     await message.add_reaction(":rla:636572608896172042")

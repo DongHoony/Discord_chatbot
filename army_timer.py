@@ -2,7 +2,8 @@ from datetime import datetime, timezone, timedelta
 import re
 KST = timezone(timedelta(hours=9))
 
-army_day    = {"신나무":datetime(2019, 4, 16, 14, 0, 0, tzinfo=KST), "이동훈":datetime(2020, 3, 8, 14, 0, 0, tzinfo=KST), "김용진":datetime(2020, 1, 28, 14, 0, 0, tzinfo=KST),
+army_day    = {"신나무":datetime(2019, 4, 16, 14, 0, 0, tzinfo=KST), "이동훈":datetime(2020, 3, 8, 14, 0, 0, tzinfo=KST),
+               "김용진":datetime(2020, 1, 28, 14, 0, 0, tzinfo=KST),
                "김겨레":datetime(2020, 8, 4, 14, 0, 0, tzinfo=KST)}
 freedom_day = {"신나무":datetime(2020, 11, 16, 0, 0, 0, tzinfo=KST), "이동훈":datetime(2022, 1, 8, 0, 0, 0, tzinfo=KST),
                "김용진":datetime(2021, 7, 27, 0, 0, 0, tzinfo=KST), "김겨레":datetime(2022, 2, 3, 0, 0, 0, tzinfo=KST)}
@@ -47,9 +48,4 @@ async def cycle(channel, command):
     delta = time - datetime.now(tz=KST)  if need_to_go else datetime.now(tz=KST) - time
     days, hours, minutes, seconds = abs(delta.days), delta.seconds // 60 // 60, delta.seconds // 60 % 60, delta.seconds % 60
 
-
-
     message = await channel.send(f"<@{id}> : {msg}까지 `{days}일 {hours}시간 {minutes}분 {seconds}초`, {msg}일 `{time.year}년 {time.month}월 {time.day}일`")
-
-
-
