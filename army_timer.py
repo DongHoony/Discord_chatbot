@@ -2,11 +2,11 @@ from datetime import datetime, timezone, timedelta
 import re
 KST = timezone(timedelta(hours=9))
 
-army_day    = {"신나무":datetime(2019, 4, 16, 14, 0, 0, tzinfo=KST), "이동훈":datetime(2020, 3, 8, 14, 0, 0, tzinfo=KST),
+army_day    = {"신나무":datetime(2019, 4, 16, 14, 0, 0, tzinfo=KST), "이동훈":datetime(2020, 3, 9, 14, 0, 0, tzinfo=KST),
                "김용진":datetime(2020, 1, 28, 14, 0, 0, tzinfo=KST),
                "김겨레":datetime(2020, 8, 4, 14, 0, 0, tzinfo=KST)}
 freedom_day = {"신나무":datetime(2020, 11, 16, 0, 0, 0, tzinfo=KST), "이동훈":datetime(2022, 1, 8, 0, 0, 0, tzinfo=KST),
-               "김용진":datetime(2021, 7, 27, 0, 0, 0, tzinfo=KST), "김겨레":datetime(2022, 2, 3, 0, 0, 0, tzinfo=KST)}
+               "김용진":datetime(2021, 8, 7, 0, 0, 0, tzinfo=KST), "김겨레":datetime(2022, 2, 3, 0, 0, 0, tzinfo=KST)}
 
 id_to_name = {"206298119661420544":"이동훈", "276706037531279361":"신나무", "228823662864629761":"김용진", "327299337509928961":"김겨레"}
 name_to_id = {"이동훈":"206298119661420544", "신나무":"276706037531279361", "김용진":"228823662864629761", "김겨레": "327299337509928961"}
